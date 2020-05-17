@@ -5,104 +5,162 @@ enum FieldType {
     Email = "email", 
     Select = "select",
     Checkbox = "checkbox"
-  }
+}
 
- 
 interface Field {
-  name: string,
-  label: FieldLabel,
-  type: FieldType,
-  value: string,
-  render(): HTMLElement
+    name: string,
+    label: string,
+    type: FieldType,
+    getValue(): string,
+    render(): HTMLElement
 }
 
 class FieldLabel {
-  private el: HTMLLabelElement;
-  constructor(name, text: string) {
-    this.el = document.createElement("label");
-    this.el.textContent = text;
-    this.el.htmlFor = name;
-  }
-  render(){
-      return this.el;
-  }
+    private label: HTMLLabelElement;
+    constructor(name: string, text: string) {
+        this.label = document.createElement("label");
+        this.label.textContent = text;
+        this.label.htmlFor = name;
+    }
+    
+    render(){
+        return this.label;
+    }
 }
-
+    
 class InputField implements Field {
-  private
-      name: string; 
-      label: FieldLabel;
-      type: FieldType;
-      value: string;
-
-  constructor(name, label: string){
-      this.name = name;
-      this.label = new FieldLabel(this.name, label);
-      this.type = FieldType.Text;
-      this.value = "";
-  }
-  render() {
-      let span = document.createElement("span");
-      let input: any;
-      if (this.type == FieldType.Textarea) {
-          input = document.createElement("textarea");
-      }
-      else {
-          input = document.createElement("input");
-          input.type = this.type.toString();
-      }
-      input.name = this.name;
-      input.value = this.value;  
-      span.appendChild(this.label.render());
-      span.appendChild(input);
-      span.appendChild(document.createElement('br'));
-      return span;
-  }
-
+    name: string; 
+    label: string;
+    type: FieldType = FieldType.Text;
+    protected elem: any;
+        
+    getValue(): string {
+        return this.elem.value.toString();
+    }
+    
+    constructor(name: string, label = ""){
+        this.name = name;
+        this.label = label;
+    }
+    
+    render() {
+        let span = document.createElement("span");
+        if (this.type == FieldType.Textarea) {
+            this.elem = document.createElement("textarea");
+        }
+        else {
+            this.elem = document.createElement("input");
+            this.elem.type = this.type;
+        }
+        this.elem.name = this.name;
+        span.appendChild((new FieldLabel(this.name, this.label).render()));
+        span.appendChild(this.elem);
+        return span;
+    }
 }
 
 class DateField extends InputField{
-  constructor(name, label: string){
-      super(name, label);
-      this.type = FieldType.Date;
-  }
+    type = FieldType.Date;
 }
 
 class EmailField extends InputField{
-  constructor(name, label: string){
-      super(name, label);
-      this.type = FieldType.Email;
-  }
+    type = FieldType.Email;
 }
 
 class CheckboxField extends InputField{
-  constructor(name, label: string){
-      super(name, label);
-      this.type = FieldType.Checkbox;
-  }
+    type = FieldType.Checkbox;
+    getValue(): string {
+        return this.elem.checked ? "Tak" : "Nie";
+    }
 }
 
 class TextAreaField extends InputField{
-  constructor(name, label: string){
-      super(name, label);
-      this.type = FieldType.Textarea;
-  }
+    type = FieldType.Textarea;
 }
 
+class SelectField extends InputField{
+    type = FieldType.Select;
 
-let i =  new InputField("input1", "pole tekstowe");
-let d =  new DateField("date1", "data");
-let e =  new EmailField("email1", "e-mail");
-let c =  new CheckboxField("checkbox1", "checkbox");
-let t =  new TextAreaField("textare1", "textarea");
+    constructor(name: string, options: string[], label = ""){
+        super(name, label);
+        this.elem = document.createElement("select");
+        for (var option of options) {
+            this.addOption(option);
+        }
+    }
 
-document.addEventListener('DOMContentLoaded', function(event) {
+    private addOption(text: string){
+        let o = document.createElement('option'); 
+        o.text = text;
+        this.elem.add(o);
+    }
 
-  let div = document.getElementById("test");
+    render() {
+        let span = document.createElement("span");
+        this.elem.name = this.name;
+        span.appendChild((new FieldLabel(this.name, this.label).render()));
+        span.appendChild(this.elem);
+        return span;
+    }      
+}
 
-  div.appendChild(i.render());
-  div.appendChild(d.render());
-  div.appendChild(e.render());
-  div.appendChild(c.render());
-  div.appendChild(t.render());
-})
+class Form {
+    private fields: Field[] = [];
+    private form: HTMLFormElement;
+
+    constructor(name: string){
+        this.form = document.createElement("form");
+        this.form.name = name;
+
+        this.fields.push(new InputField("imie", "Imię"));
+        this.fields.push(new InputField("nazwisko", "Nazwisko"));
+        this.fields.push(new EmailField("email", "E-mail"));
+        this.fields.push(new SelectField("kierunek", ["Informatyka", "Ekonometria", "Kosmetologia"], "Wybrany kierunek studiów"));
+        this.fields.push(new DateField("data", "Data"));
+        this.fields.push(new CheckboxField("elearning", "Czy preferujesz e-learning?"));
+        this.fields.push(new TextAreaField("uwagi", "Uwagi"));
+
+        for (var field of this.fields) {
+            this.form.appendChild(field.render());
+        }
+    }
+
+    getValue(){ 
+        let output: {[k: string]: any} = {};
+        for (var field of this.fields) {
+            output[field.name] = field.getValue();
+        }
+        return output;
+    }
+
+    render(){
+        let button = document.createElement('input');
+        button.type = 'button';
+        button.value = 'Zapisz';
+        button.onclick =  function(form){ return function(){  form.save(); }}(this);
+
+        let button2 = document.createElement('input');
+        button2.type = 'button';
+        button2.value = 'Wstecz';
+        button2.onclick = function(){ window.location.href = "index.html"; }
+
+        this.form.appendChild(button);
+        this.form.appendChild(button2);
+
+        return this.form;
+    }
+
+    save(){
+        (new LocStorage()).saveDocument(this.getValue());
+        window.location.href = "index.html";
+    }
+}
+
+class App {
+    formularz: Form = new Form("formularz");
+    constructor(id: string){
+        let div = document.getElementById(id);
+        if (div) div.appendChild(this.formularz.render());
+    }
+}
+
