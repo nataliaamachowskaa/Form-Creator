@@ -11,16 +11,17 @@ interface Field {
     name: string,
     label: string,
     type: FieldType,
+    value: string|boolean,
     getValue(): string,
     render(): HTMLElement
 }
 
 class FieldLabel {
     private label: HTMLLabelElement;
-    constructor(name: string, text: string) {
+    constructor(field: Field) {
         this.label = document.createElement("label");
-        this.label.textContent = text;
-        this.label.htmlFor = name;
+        this.label.textContent = field.label;
+        this.label.htmlFor = field.name;
     }
     
     render(){
@@ -31,16 +32,18 @@ class FieldLabel {
 class InputField implements Field {
     name: string; 
     label: string;
+    value: string|boolean;
     type: FieldType = FieldType.Text;
     protected elem: any;
         
     getValue(): string {
-        return this.elem.value.toString();
+        return (this.type == FieldType.Checkbox) ? this.elem.checked : this.elem.value;
     }
     
-    constructor(name: string, label = ""){
+    constructor(name: string, label: string, value: string|boolean){
         this.name = name;
         this.label = label;
+        this.value = value;
     }
     
     render() {
@@ -53,7 +56,13 @@ class InputField implements Field {
             this.elem.type = this.type;
         }
         this.elem.name = this.name;
-        span.appendChild((new FieldLabel(this.name, this.label).render()));
+        if (this.type == FieldType.Checkbox) {
+            this.elem.checked = this.value;
+        } 
+        else {
+            this.elem.value = this.value;
+        } 
+        span.appendChild((new FieldLabel(this).render()));
         span.appendChild(this.elem);
         return span;
     }
@@ -70,7 +79,7 @@ class EmailField extends InputField{
 class CheckboxField extends InputField{
     type = FieldType.Checkbox;
     getValue(): string {
-        return this.elem.checked ? "Tak" : "Nie";
+        return this.elem.checked;
     }
 }
 
@@ -81,8 +90,8 @@ class TextAreaField extends InputField{
 class SelectField extends InputField{
     type = FieldType.Select;
 
-    constructor(name: string, options: string[], label = ""){
-        super(name, label);
+    constructor(name: string, options: string[], label: string, value: string){
+        super(name, label, value);
         this.elem = document.createElement("select");
         for (var option of options) {
             this.addOption(option);
@@ -96,44 +105,49 @@ class SelectField extends InputField{
     }
 
     render() {
+        if(this.value){
+            for(let i = 0; i < this.elem.options.length; i++){
+                if(this.elem.options[i].text == this.value){
+                    this.elem.options.selectedIndex = i;
+                    break;
+                } 
+            }
+        }
         let span = document.createElement("span");
         this.elem.name = this.name;
-        span.appendChild((new FieldLabel(this.name, this.label).render()));
+        span.appendChild((new FieldLabel(this).render()));
         span.appendChild(this.elem);
         return span;
     }      
 }
 
 class Form {
-    private fields: Field[] = [];
-    private form: HTMLFormElement;
+    protected fields: Field[] = [];
+    protected form: HTMLFormElement;
 
     constructor(name: string){
         this.form = document.createElement("form");
         this.form.name = name;
-
-        this.fields.push(new InputField("imie", "Imię"));
-        this.fields.push(new InputField("nazwisko", "Nazwisko"));
-        this.fields.push(new EmailField("email", "E-mail"));
-        this.fields.push(new SelectField("kierunek", ["Informatyka", "Ekonometria", "Kosmetologia"], "Wybrany kierunek studiów"));
-        this.fields.push(new DateField("data", "Data"));
-        this.fields.push(new CheckboxField("elearning", "Czy preferujesz e-learning?"));
-        this.fields.push(new TextAreaField("uwagi", "Uwagi"));
-
-        for (var field of this.fields) {
-            this.form.appendChild(field.render());
-        }
     }
 
     getValue(){ 
-        let output: {[k: string]: any} = {};
-        for (var field of this.fields) {
+        let output: any = {};
+        for (let field of this.fields) {
             output[field.name] = field.getValue();
         }
         return output;
     }
 
+    addField(field: Field){
+        this.fields.push(field);
+    }
+
     render(){
+        this.form.innerHTML = "";
+        for (let field of this.fields) {
+            this.form.appendChild(field.render());
+        }
+
         let button = document.createElement('input');
         button.type = 'button';
         button.value = 'Zapisz';
@@ -151,16 +165,64 @@ class Form {
     }
 
     save(){
-        (new LocStorage()).saveDocument(this.getValue());
+        (new LocStorage()).saveDocument(this.getValue(), Router.getParam('id'));
         window.location.href = "index.html";
     }
 }
 
 class App {
-    formularz: Form = new Form("formularz");
+    private div: any;
     constructor(id: string){
-        let div = document.getElementById(id);
-        if (div) div.appendChild(this.formularz.render());
+        this.div = document.getElementById(id);
     }
+
+    editDocument(){
+        if (this.div){
+            this.div.innerHTML = ""; 
+
+            let type = Router.getParam('type');
+            if(type && type == "form"){
+                 this.div.appendChild((new FormCreator).newForm());
+                return;
+            }
+           
+            let id = Router.getParam('id');   
+            if(id){
+                let dokument = (new DocumentList).getDocument(id);
+                let formularz = new Form("formularz");
+                formularz.addField(new InputField("imie", "Imię", dokument.imie));
+                formularz.addField(new InputField("nazwisko", "Nazwisko", dokument.nazwisko));
+                formularz.addField(new EmailField("email", "E-mail", dokument.email));
+                formularz.addField(new SelectField("kierunek", ["Informatyka", "Ekonometria", "Kosmetologia"], "Wybrany kierunek studiów", dokument.kierunek));
+                formularz.addField(new DateField("data", "Data", dokument.data));
+                formularz.addField(new CheckboxField("elearning", "Czy preferujesz e-learning?", dokument.elearning));
+                formularz.addField(new TextAreaField("uwagi", "Uwagi", dokument.uwagi));
+                this.div.appendChild(formularz.render());
+            }
+        } 
+    }
+
+    newDocument(){
+        if (this.div){
+            this.div.innerHTML = "";
+            let formularz: Form = new Form("formularz");
+            formularz.addField(new InputField("imie", "Imię", ""));
+            formularz.addField(new InputField("nazwisko", "Nazwisko", ""));
+            formularz.addField(new EmailField("email", "E-mail", ""));
+            formularz.addField(new SelectField("kierunek", ["Informatyka", "Ekonometria", "Kosmetologia"], "Wybrany kierunek studiów", "Informatyka"));
+            formularz.addField(new DateField("data", "Data", ""));
+            formularz.addField(new CheckboxField("elearning", "Czy preferujesz e-learning?", false));
+            formularz.addField(new TextAreaField("uwagi", "Uwagi", ""));
+            this.div.appendChild(formularz.render());
+        } 
+    }
+
+    documentList(){
+        if (this.div){
+            this.div.innerHTML = ""; 
+            this.div.appendChild((new DocumentList()).render());
+        }
+    }
+
 }
 
