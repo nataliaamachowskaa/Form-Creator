@@ -49,14 +49,14 @@ class FormCreator
         this.content.appendChild(this.form);
     }
 
-    public newForm(): any {
-        let id = Router.getParam('id');
-        if(id) {
-            this.formularz = (new LocStorage).loadForm(id);
-            this.div.innerHTML = "";
-            this.div.appendChild(this.formularz.render());
-        }
-        this.formularz = new Form("formularz");
+    public newForm(): any {        
+       // let id = Router.getParam('id');
+       // if(id) {
+         //   this.formularz = (new LocStorage).loadForm(id);
+         //   this.div.innerHTML = "";
+         //   this.div.appendChild(this.formularz.render());
+        //}
+        this.formularz = new Form();
         return this.content;
     }
 
@@ -64,5 +64,34 @@ class FormCreator
         (new LocStorage).saveForm(this.formularz);
         window.location.href = "index.html";
     }
+
+
+    public formList() {
+        let table = document.createElement("table");
+        let list = new DocumentList().getDocumentList();
+
+        //console.log(list);
+        for (let id of list) {
+            if (id.substr(0, 4) != 'form') continue;
+
+            let tr = table.insertRow();
+            let a = document.createElement('a');
+            a.appendChild(document.createTextNode(id));
+            a.href = 'new-document.html?id=' + id;
+            tr.insertCell().appendChild(a);
+
+            let button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = 'Usuń';
+            button.onclick =  function(id){ return function(){ 
+                new DocumentList().removeDocument(id); 
+                window.location.reload(); 
+            }}(id);
+            tr.insertCell().appendChild(button);    
+        }
+        return table;   
+    }
+
+
 
 }

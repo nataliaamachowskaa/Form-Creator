@@ -6,11 +6,7 @@ interface DataStorage{
 
 class LocStorage implements DataStorage{
 
-	saveDocument(doc: any, ident?: string): string {
-		if(ident){
-			localStorage.setItem(ident, JSON.stringify(doc));
-			return ident;
-		}
+	saveDocument(doc: any): string {
 		const id = 'document-' + Date.now().toString();
 		localStorage.setItem(id, JSON.stringify(doc));
 
@@ -41,7 +37,7 @@ class LocStorage implements DataStorage{
 
     saveForm(form: any): string {
         const id = 'form-' + Date.now();
-		localStorage.setItem(id, JSON.stringify(form));
+        localStorage.setItem(id, JSON.stringify(form));
 		
 		let ids = this.getDocuments();
 		ids.push(id);
@@ -50,19 +46,8 @@ class LocStorage implements DataStorage{
         return id;
     }
 
-    public loadForm(id: string): any {
-		let item = localStorage.getItem(id);
-        if (item) {   
-            let obj = JSON.parse(item);
-            let form = new Form("formularz");
-            for(let field of obj.fields) {  
-                let f = new InputField(field.name, field.label, field.value);
-                f.type = field.type;
-                form.addField(f); 
-            }
-            return form;
-        }
-        return null;
+    loadForm(id: string): any {
+	    return this.loadDocument(id);
     }
 
 

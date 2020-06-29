@@ -51,18 +51,44 @@ var FormCreator = /** @class */ (function () {
         this.content.appendChild(this.form);
     }
     FormCreator.prototype.newForm = function () {
-        var id = Router.getParam('id');
-        if (id) {
-            this.formularz = (new LocStorage).loadForm(id);
-            this.div.innerHTML = "";
-            this.div.appendChild(this.formularz.render());
-        }
-        this.formularz = new Form("formularz");
+        // let id = Router.getParam('id');
+        // if(id) {
+        //   this.formularz = (new LocStorage).loadForm(id);
+        //   this.div.innerHTML = "";
+        //   this.div.appendChild(this.formularz.render());
+        //}
+        this.formularz = new Form();
         return this.content;
     };
     FormCreator.prototype.saveForm = function () {
         (new LocStorage).saveForm(this.formularz);
         window.location.href = "index.html";
+    };
+    FormCreator.prototype.formList = function () {
+        var table = document.createElement("table");
+        var list = new DocumentList().getDocumentList();
+        //console.log(list);
+        for (var _i = 0, list_1 = list; _i < list_1.length; _i++) {
+            var id = list_1[_i];
+            if (id.substr(0, 4) != 'form')
+                continue;
+            var tr = table.insertRow();
+            var a = document.createElement('a');
+            a.appendChild(document.createTextNode(id));
+            a.href = 'new-document.html?id=' + id;
+            tr.insertCell().appendChild(a);
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = 'Usuń';
+            button.onclick = function (id) {
+                return function () {
+                    new DocumentList().removeDocument(id);
+                    window.location.reload();
+                };
+            }(id);
+            tr.insertCell().appendChild(button);
+        }
+        return table;
     };
     return FormCreator;
 }());
@@ -74,6 +100,7 @@ var DocumentList = /** @class */ (function () {
     }
     DocumentList.prototype.getDocumentList = function () {
         this.list = this.ls.getDocuments();
+        return this.list;
     };
     DocumentList.prototype.getDocument = function (id) {
         return this.ls.loadDocument(id);
@@ -85,10 +112,12 @@ var DocumentList = /** @class */ (function () {
         var table = document.createElement("table");
         for (var _i = 0, _a = this.list; _i < _a.length; _i++) {
             var id = _a[_i];
+            if (id.substr(0, 4) == 'form')
+                continue;
             var tr = table.insertRow();
             var a = document.createElement('a');
             a.appendChild(document.createTextNode(id));
-            a.href = (id.substr(0, 4) == 'form' ? 'edit-document.html?type=form&id=' : 'edit-document.html?id=') + id;
+            a.href = 'edit-document.html?id=' + id;
             tr.insertCell().appendChild(a);
             var button = document.createElement('button');
             button.type = 'button';
@@ -239,26 +268,43 @@ var SelectField = /** @class */ (function (_super) {
     return SelectField;
 }(InputField));
 var Form = /** @class */ (function () {
-    function Form(name) {
+    function Form(id) {
+        if (id === void 0) { id = ""; }
         this.fields = [];
         this.form = document.createElement("form");
-        this.form.name = name;
+        this.id = id;
     }
     Form.prototype.getValue = function () {
-        var output = {};
-        for (var _i = 0, _a = this.fields; _i < _a.length; _i++) {
-            var field = _a[_i];
-            output[field.name] = field.getValue();
+        // let output: any = {};
+        // for (let field of this.fields) {
+        //     output[field.name] = field.getValue();
+        // }
+        // return output;
+        //???
+        for (var i = 0; i < this.fields.length; i++) {
+            this.fields[i].value = this.fields[i].getValue();
         }
-        return output;
+        return this;
     };
     Form.prototype.addField = function (field) {
         this.fields.push(field);
     };
     Form.prototype.render = function () {
-        this.form.innerHTML = "";
-        for (var _i = 0, _a = this.fields; _i < _a.length; _i++) {
-            var field = _a[_i];
+        this.form.innerHTML = '';
+        if (this.id) {
+            var form = (new LocStorage()).loadForm(this.id);
+            //console.log(form);
+            //poprawic to
+            this.fields = [];
+            for (var _i = 0, _a = form.fields; _i < _a.length; _i++) {
+                var field = _a[_i];
+                var f = new InputField(field.name, field.label, field.value);
+                f.type = field.type;
+                this.addField(f);
+            }
+        }
+        for (var _b = 0, _c = this.fields; _b < _c.length; _b++) {
+            var field = _c[_b];
             this.form.appendChild(field.render());
         }
         var button = document.createElement('input');
@@ -274,7 +320,7 @@ var Form = /** @class */ (function () {
         return this.form;
     };
     Form.prototype.save = function () {
-        (new LocStorage()).saveDocument(this.getValue(), Router.getParam('id'));
+        (new LocStorage()).saveDocument(this.getValue());
         window.location.href = "index.html";
     };
     return Form;
@@ -282,49 +328,48 @@ var Form = /** @class */ (function () {
 var App = /** @class */ (function () {
     function App(id) {
         this.div = document.getElementById(id);
+        this.div.innerHTML = "";
     }
     App.prototype.editDocument = function () {
-        if (this.div) {
-            this.div.innerHTML = "";
-            var type = Router.getParam('type');
-            if (type && type == "form") {
-                this.div.appendChild((new FormCreator).newForm());
-                return;
-            }
-            var id = Router.getParam('id');
-            if (id) {
-                var dokument = (new DocumentList).getDocument(id);
-                var formularz = new Form("formularz");
-                formularz.addField(new InputField("imie", "Imię", dokument.imie));
-                formularz.addField(new InputField("nazwisko", "Nazwisko", dokument.nazwisko));
-                formularz.addField(new EmailField("email", "E-mail", dokument.email));
-                formularz.addField(new SelectField("kierunek", ["Informatyka", "Ekonometria", "Kosmetologia"], "Wybrany kierunek studiów", dokument.kierunek));
-                formularz.addField(new DateField("data", "Data", dokument.data));
-                formularz.addField(new CheckboxField("elearning", "Czy preferujesz e-learning?", dokument.elearning));
-                formularz.addField(new TextAreaField("uwagi", "Uwagi", dokument.uwagi));
-                this.div.appendChild(formularz.render());
-            }
+        var type = Router.getParam('type');
+        if (type && type == "form") {
+            this.div.appendChild((new FormCreator).newForm());
+            return;
+        }
+        var id = Router.getParam('id');
+        if (id) {
+            var formularz = new Form(id);
+            // let dokument = (new DocumentList).getDocument(id);
+            // let formularz = new Form(dokument);
+            //console.log(dokument);
+            // for(let key in dokument) {  
+            //    console.log(key);
+            ///  let f = new InputField(field.name, field.label, field.value);
+            //  f.type = field.type;
+            //  this.addField(f); 
+            // }
+            this.div.appendChild(formularz.render());
         }
     };
     App.prototype.newDocument = function () {
-        if (this.div) {
-            this.div.innerHTML = "";
-            var formularz = new Form("formularz");
-            formularz.addField(new InputField("imie", "Imię", ""));
-            formularz.addField(new InputField("nazwisko", "Nazwisko", ""));
-            formularz.addField(new EmailField("email", "E-mail", ""));
-            formularz.addField(new SelectField("kierunek", ["Informatyka", "Ekonometria", "Kosmetologia"], "Wybrany kierunek studiów", "Informatyka"));
-            formularz.addField(new DateField("data", "Data", ""));
-            formularz.addField(new CheckboxField("elearning", "Czy preferujesz e-learning?", false));
-            formularz.addField(new TextAreaField("uwagi", "Uwagi", ""));
+        var id = Router.getParam('id');
+        if (id) {
+            var formularz = new Form(id);
+            //   formularz.addField(new InputField("imie", "Imię", dokument.imie));
+            //   formularz.addField(new InputField("nazwisko", "Nazwisko", dokument.nazwisko));
+            //   formularz.addField(new EmailField("email", "E-mail", dokument.email));
+            //   formularz.addField(new SelectField("kierunek", ["Informatyka", "Ekonometria", "Kosmetologia"], "Wybrany kierunek studiów", dokument.kierunek));
+            //   formularz.addField(new DateField("data", "Data", dokument.data));
+            //   formularz.addField(new CheckboxField("elearning", "Czy preferujesz e-learning?", dokument.elearning));
+            //   formularz.addField(new TextAreaField("uwagi", "Uwagi", dokument.uwagi));
             this.div.appendChild(formularz.render());
         }
     };
     App.prototype.documentList = function () {
-        if (this.div) {
-            this.div.innerHTML = "";
-            this.div.appendChild((new DocumentList()).render());
-        }
+        this.div.appendChild((new DocumentList()).render());
+    };
+    App.prototype.formList = function () {
+        this.div.appendChild((new FormCreator()).formList());
     };
     return App;
 }());
@@ -342,11 +387,7 @@ var Router = /** @class */ (function () {
 var LocStorage = /** @class */ (function () {
     function LocStorage() {
     }
-    LocStorage.prototype.saveDocument = function (doc, ident) {
-        if (ident) {
-            localStorage.setItem(ident, JSON.stringify(doc));
-            return ident;
-        }
+    LocStorage.prototype.saveDocument = function (doc) {
         var id = 'document-' + Date.now().toString();
         localStorage.setItem(id, JSON.stringify(doc));
         var ids = this.getDocuments();
@@ -378,19 +419,7 @@ var LocStorage = /** @class */ (function () {
         return id;
     };
     LocStorage.prototype.loadForm = function (id) {
-        var item = localStorage.getItem(id);
-        if (item) {
-            var obj = JSON.parse(item);
-            var form = new Form("formularz");
-            for (var _i = 0, _a = obj.fields; _i < _a.length; _i++) {
-                var field = _a[_i];
-                var f = new InputField(field.name, field.label, field.value);
-                f.type = field.type;
-                form.addField(f);
-            }
-            return form;
-        }
-        return null;
+        return this.loadDocument(id);
     };
     return LocStorage;
 }());

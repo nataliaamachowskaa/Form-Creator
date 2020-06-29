@@ -124,18 +124,26 @@ class SelectField extends InputField{
 class Form {
     protected fields: Field[] = [];
     protected form: HTMLFormElement;
+    public id: string;
 
-    constructor(name: string){
+    constructor(id: string = ""){
         this.form = document.createElement("form");
-        this.form.name = name;
+        this.id = id;
     }
 
     getValue(){ 
-        let output: any = {};
-        for (let field of this.fields) {
-            output[field.name] = field.getValue();
-        }
-        return output;
+       // let output: any = {};
+       // for (let field of this.fields) {
+       //     output[field.name] = field.getValue();
+       // }
+       // return output;
+
+       //???
+       for (let i = 0; i < this.fields.length; i++) {
+            this.fields[i].value = this.fields[i].getValue();
+       }
+
+       return this;
     }
 
     addField(field: Field){
@@ -143,7 +151,21 @@ class Form {
     }
 
     render(){
-        this.form.innerHTML = "";
+        this.form.innerHTML = '';
+        if(this.id){
+            let form = (new LocStorage()).loadForm(this.id);
+            //console.log(form);
+
+            //poprawic to
+            this.fields = [];
+            for(let field of form.fields) {  
+                let f = new InputField(field.name, field.label, field.value);
+                f.type = field.type;
+                this.addField(f); 
+            }
+
+        }
+
         for (let field of this.fields) {
             this.form.appendChild(field.render());
         }
@@ -165,7 +187,7 @@ class Form {
     }
 
     save(){
-        (new LocStorage()).saveDocument(this.getValue(), Router.getParam('id'));
+        (new LocStorage()).saveDocument(this.getValue());
         window.location.href = "index.html";
     }
 }
@@ -174,54 +196,58 @@ class App {
     private div: any;
     constructor(id: string){
         this.div = document.getElementById(id);
+        this.div.innerHTML = "";
     }
 
     editDocument(){
-        if (this.div){
-            this.div.innerHTML = ""; 
+        let type = Router.getParam('type');
+        if(type && type == "form"){
+            this.div.appendChild((new FormCreator).newForm());
+            return;
+         }
 
-            let type = Router.getParam('type');
-            if(type && type == "form"){
-                 this.div.appendChild((new FormCreator).newForm());
-                return;
-            }
-           
-            let id = Router.getParam('id');   
-            if(id){
-                let dokument = (new DocumentList).getDocument(id);
-                let formularz = new Form("formularz");
-                formularz.addField(new InputField("imie", "Imię", dokument.imie));
-                formularz.addField(new InputField("nazwisko", "Nazwisko", dokument.nazwisko));
-                formularz.addField(new EmailField("email", "E-mail", dokument.email));
-                formularz.addField(new SelectField("kierunek", ["Informatyka", "Ekonometria", "Kosmetologia"], "Wybrany kierunek studiów", dokument.kierunek));
-                formularz.addField(new DateField("data", "Data", dokument.data));
-                formularz.addField(new CheckboxField("elearning", "Czy preferujesz e-learning?", dokument.elearning));
-                formularz.addField(new TextAreaField("uwagi", "Uwagi", dokument.uwagi));
-                this.div.appendChild(formularz.render());
-            }
-        } 
+         let id = Router.getParam('id');   
+         if(id){
+
+            let formularz = new Form(id);  
+           // let dokument = (new DocumentList).getDocument(id);
+           // let formularz = new Form(dokument);
+        
+            //console.log(dokument);
+
+           // for(let key in dokument) {  
+            //    console.log(key);
+              ///  let f = new InputField(field.name, field.label, field.value);
+              //  f.type = field.type;
+              //  this.addField(f); 
+           // }
+
+
+            this.div.appendChild(formularz.render());
+         }
     }
 
     newDocument(){
-        if (this.div){
-            this.div.innerHTML = "";
-            let formularz: Form = new Form("formularz");
-            formularz.addField(new InputField("imie", "Imię", ""));
-            formularz.addField(new InputField("nazwisko", "Nazwisko", ""));
-            formularz.addField(new EmailField("email", "E-mail", ""));
-            formularz.addField(new SelectField("kierunek", ["Informatyka", "Ekonometria", "Kosmetologia"], "Wybrany kierunek studiów", "Informatyka"));
-            formularz.addField(new DateField("data", "Data", ""));
-            formularz.addField(new CheckboxField("elearning", "Czy preferujesz e-learning?", false));
-            formularz.addField(new TextAreaField("uwagi", "Uwagi", ""));
-            this.div.appendChild(formularz.render());
-        } 
+            let id = Router.getParam('id');   
+            if(id){
+                let formularz = new Form(id);
+             //   formularz.addField(new InputField("imie", "Imię", dokument.imie));
+             //   formularz.addField(new InputField("nazwisko", "Nazwisko", dokument.nazwisko));
+             //   formularz.addField(new EmailField("email", "E-mail", dokument.email));
+             //   formularz.addField(new SelectField("kierunek", ["Informatyka", "Ekonometria", "Kosmetologia"], "Wybrany kierunek studiów", dokument.kierunek));
+             //   formularz.addField(new DateField("data", "Data", dokument.data));
+             //   formularz.addField(new CheckboxField("elearning", "Czy preferujesz e-learning?", dokument.elearning));
+             //   formularz.addField(new TextAreaField("uwagi", "Uwagi", dokument.uwagi));
+                this.div.appendChild(formularz.render());
+            }
     }
 
     documentList(){
-        if (this.div){
-            this.div.innerHTML = ""; 
-            this.div.appendChild((new DocumentList()).render());
-        }
+        this.div.appendChild((new DocumentList()).render());
+    }
+
+    formList(){
+        this.div.appendChild((new FormCreator()).formList());
     }
 
 }

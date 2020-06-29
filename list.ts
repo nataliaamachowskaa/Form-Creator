@@ -7,6 +7,7 @@ class DocumentList{
 
     getDocumentList(){
        this.list = this.ls.getDocuments();
+       return this.list;
     }
 
     getDocument(id: string): any {
@@ -20,10 +21,11 @@ class DocumentList{
     render(){
         let table = document.createElement("table");
         for (let id of this.list) {
+            if (id.substr(0, 4) == 'form') continue;
             let tr = table.insertRow();
             let a = document.createElement('a');
             a.appendChild(document.createTextNode(id));
-            a.href = (id.substr(0, 4) == 'form' ? 'edit-document.html?type=form&id=' : 'edit-document.html?id=') + id;
+            a.href = 'edit-document.html?id=' + id;
             tr.insertCell().appendChild(a);
 
             let button = document.createElement('button');
